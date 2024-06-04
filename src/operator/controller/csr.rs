@@ -8,7 +8,7 @@ use k8s_openapi::{
     apimachinery::pkg::apis::meta::v1::Time,
 };
 use kube::{
-    api::PatchParams,
+    api::{DeleteParams, PatchParams},
     core::object::HasStatus,
     runtime::{controller::Action, reflector::Lookup},
     ResourceExt,
@@ -77,6 +77,12 @@ async fn approve_csr(csr: &mut CertificateSigningRequest, ctx: Arc<OperatorCtx>)
     Ok(())
 }
 
+async fn delete_csr(ctx: Arc<OperatorCtx>, name: &str) -> KuoResult<()> {
+    let api = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone());
+    api.delete(name, &DeleteParams::default()).await?;
+    Ok(())
+}
+
 #[tracing::instrument(skip(csr_arc, ctx), fields(name=csr_arc.name_any()), err)]
 pub async fn reconcile(
     csr_arc: Arc<CertificateSigningRequest>,
@@ -122,6 +128,7 @@ pub async fn reconcile(
             new_status.cert = Some(String::from_utf8(csr_signed_cert.0.clone())?);
             user = user.update_status(&new_status, ctx.clone()).await?;
             user.send_kubeconfig(ctx.clone()).await?;
+            delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
             return Ok(Action::requeue(Duration::from_secs(60 * 10)));
         }
         _ => {}
