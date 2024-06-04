@@ -20,9 +20,12 @@ pub struct OperatorArgs {
     #[clap(long, env = "KUO_OPERATOR_KUBE_ADDR", default_value = "https://0.0.0.0:6443")]
     pub kube_addr: String,
 
+    /// Name of the configmap which contains the kube root certificate authority.
+    /// This certificate authority will be used to verify the kube api server.
     #[clap(long, env = "DEFAULT_CERT_CM_NAME", default_value = "kube-root-ca.crt")]
     pub default_cert_name: String,
 
+    /// Key of the configmap which contains the kube root certificate authority data.
     #[clap(long, env = "DEFAULT_CERT_CM_KEY", default_value = "ca.crt")]
     pub default_cert_key: String,
 
