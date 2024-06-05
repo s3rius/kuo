@@ -19,7 +19,7 @@ use crate::operator::{
     utils::get_kube_cert,
 };
 
-use super::UniqueInfo;
+use super::{permissions::InlinePermissions, UniqueInfo};
 
 #[derive(CustomResource, Debug, Serialize, Deserialize, Default, Clone, JsonSchema)]
 #[kube(group = "kuo.github.io", version = "v1", kind = "ManagedUser")]
@@ -31,6 +31,8 @@ pub struct ManagedUserCRD {
     pub email: String,
     /// User's full name. Used in email.
     pub full_name: Option<String>,
+    /// List of inlined permissions.
+    pub inline_permissions: Option<InlinePermissions>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
@@ -149,6 +151,12 @@ impl ManagedUser {
             )
             )).singlepart(kube_config_attachement))?;
         ctx.smtp.send(msg).await?;
+        Ok(())
+    }
+
+    pub async fn sync_permissions(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
+        let permissions = self.spec.inline_permissions.clone().unwrap_or_default();
+        permissions.apply(self, ctx.clone()).await?;
         Ok(())
     }
 }

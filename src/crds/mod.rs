@@ -1,5 +1,6 @@
 use k8s_openapi::api::certificates::v1::CertificateSigningRequest;
 
+pub mod permissions;
 pub mod managed_user;
 
 pub trait UniqueInfo {

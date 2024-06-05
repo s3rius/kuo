@@ -103,6 +103,7 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
             "Managed user metadata has no UID",
         )));
     }
+    user.sync_permissions(ctx.clone()).await?;
     if user.status.is_some() {
         return Ok(Action::requeue(Duration::from_secs(60 * 10)));
     }
