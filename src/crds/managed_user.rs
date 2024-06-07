@@ -22,8 +22,26 @@ use crate::operator::{
 use super::inline_permissions::InlinePermissions;
 
 #[derive(CustomResource, Debug, Serialize, Deserialize, Default, Clone, JsonSchema)]
-#[kube(group = "kuo.github.io", version = "v1", kind = "ManagedUser")]
-#[kube(status = "ManagedUserStatus")]
+#[kube(
+    group = "kuo.github.io",
+    version = "v1",
+    kind = "ManagedUser",
+    status = "ManagedUserStatus",
+    printcolumn = r#"
+    {
+        "name":"Email", 
+        "type":"string", 
+        "description":"User's email", 
+        "jsonPath":".spec.email"
+    }, 
+    {
+        "name": "Full Name", 
+        "type": "string", 
+        "description": "User's real name", 
+        "jsonPath": ".spec.full_name"
+    }
+    "#
+)]
 pub struct ManagedUserCRD {
     /// Email to use for sending kubeconfig
     #[validate(email)]
