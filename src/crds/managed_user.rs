@@ -19,7 +19,7 @@ use crate::operator::{
     utils::get_kube_cert,
 };
 
-use super::{permissions::InlinePermissions, UniqueInfo};
+use super::inline_permissions::InlinePermissions;
 
 #[derive(CustomResource, Debug, Serialize, Deserialize, Default, Clone, JsonSchema)]
 #[kube(group = "kuo.github.io", version = "v1", kind = "ManagedUser")]
@@ -42,12 +42,6 @@ pub struct ManagedUserStatus {
     pub pkey: String,
     /// Resulting certificate for a user.
     pub cert: Option<String>,
-}
-
-impl UniqueInfo for ManagedUser {
-    fn unique_info(&self) -> String {
-        self.spec.email.clone()
-    }
 }
 
 pub fn immutable_rule<T: JsonSchema>(
@@ -155,8 +149,10 @@ impl ManagedUser {
     }
 
     pub async fn sync_permissions(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
-        let permissions = self.spec.inline_permissions.clone().unwrap_or_default();
-        permissions.apply(self, ctx.clone()).await?;
+        tracing::info!("Syncing permissions for user {}", self.name_any());
+        if let Some(permissions) = &self.spec.inline_permissions {
+            permissions.apply(self, ctx.clone()).await?;
+        }
         Ok(())
     }
 }

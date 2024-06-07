@@ -4,10 +4,7 @@ use futures::StreamExt;
 use k8s_openapi::api::certificates::v1::CertificateSigningRequest;
 use kube::{runtime::controller::Action, Api};
 
-use crate::{
-    crds::{managed_user::ManagedUser, UniqueInfo},
-    operator::error::KuoError,
-};
+use crate::{crds::managed_user::ManagedUser, operator::error::KuoError};
 
 use super::ctx::OperatorCtx;
 
@@ -20,7 +17,6 @@ where
         + kube::Resource<DynamicType = ()>
         + serde::de::DeserializeOwned
         + std::fmt::Debug
-        + UniqueInfo
         + Send
         + Sync
         + 'static,

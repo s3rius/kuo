@@ -1,21 +1,18 @@
 use std::{sync::Arc, time::Duration};
 
-use k8s_openapi::{
-    api::certificates::v1::CertificateSigningRequest,
-    apimachinery::pkg::apis::meta::v1::OwnerReference, ByteString,
-};
+use k8s_openapi::{api::certificates::v1::CertificateSigningRequest, ByteString};
 use kube::{
     api::{ObjectMeta, PostParams},
     runtime::{controller::Action, reflector::Lookup},
-    CustomResourceExt, ResourceExt,
+    ResourceExt,
 };
-use tracing::Instrument;
 
 use crate::{
     crds::managed_user::{ManagedUser, ManagedUserStatus},
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
+        utils::meta::ObjectMetaKuoExt,
     },
 };
 
@@ -42,36 +39,20 @@ fn build_csr(
 
 pub async fn create_kube_csr(
     ctx: Arc<OperatorCtx>,
-    username: &str,
-    uid: &str,
+    user: &ManagedUser,
     x509_req: &openssl::x509::X509Req,
     csr_name: &str,
 ) -> KuoResult<CertificateSigningRequest> {
     let cert_req_api = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone());
+    let mut meta = ObjectMeta::default();
+    meta.insert_label("app.kubernetes.io/managed-by", "kuo-operator");
+    meta.name = Some(csr_name.to_string());
+    meta.add_owner(user, None);
     let sign_req = cert_req_api
         .create(
             &PostParams::default(),
             &CertificateSigningRequest {
-                metadata: {
-                    let mut meta = ObjectMeta::default();
-                    let mut labels = std::collections::BTreeMap::new();
-                    labels.insert(
-                        String::from("app.kubernetes.io/managed-by"),
-                        String::from("kuo-operator"),
-                    );
-                    meta.labels = Some(labels);
-                    meta.name = Some(csr_name.to_string());
-                    let api_resounce = ManagedUser::api_resource();
-                    meta.owner_references = Some(vec![OwnerReference {
-                        api_version: api_resounce.api_version,
-                        kind: api_resounce.kind,
-                        name: String::from(username),
-                        uid: String::from(uid),
-                        controller: Some(true),
-                        block_owner_deletion: Some(false),
-                    }]);
-                    meta
-                },
+                metadata: meta,
                 spec: k8s_openapi::api::certificates::v1::CertificateSigningRequestSpec {
                     request: ByteString(x509_req.to_pem()?),
                     signer_name: ctx.args.signer_name.clone(),
@@ -118,16 +99,7 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
         },
         ctx.clone(),
     )
-    .in_current_span()
     .await?;
-    create_kube_csr(
-        ctx,
-        &user.name_unchecked(),
-        user.metadata.uid.as_ref().unwrap(),
-        &csr,
-        &csr_name,
-    )
-    .in_current_span()
-    .await?;
+    create_kube_csr(ctx, &user, &csr, &csr_name).await?;
     Ok(Action::requeue(Duration::from_secs(60 * 5)))
 }

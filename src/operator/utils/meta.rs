@@ -1,33 +1,44 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
-use kube::{api::ObjectMeta, CustomResourceExt, ResourceExt};
+use kube::{api::ObjectMeta, ResourceExt};
 
 pub trait ObjectMetaKuoExt: Default {
-    fn default_with_owner<T>(owner: &T) -> Self
+    fn add_owner<T>(&mut self, owner: &T, controller: Option<bool>)
     where
-        T: CustomResourceExt + ResourceExt;
+        T: kube::Resource<DynamicType = ()>,
+        T::DynamicType: Eq + std::hash::Hash + Clone;
+
+    fn insert_label<F, S>(&mut self, key: F, value: S)
+    where
+        F: ToString,
+        S: ToString;
 }
 
 impl ObjectMetaKuoExt for ObjectMeta {
-    fn default_with_owner<T>(owner: &T) -> Self
+    fn add_owner<T>(&mut self, owner: &T, controller: Option<bool>)
     where
-        T: CustomResourceExt + ResourceExt,
+        T: kube::Resource<DynamicType = ()>,
+        T::DynamicType: Eq + std::hash::Hash + Clone,
     {
-        let mut meta = ObjectMeta::default();
-        let mut labels = std::collections::BTreeMap::new();
-        labels.insert(
-            String::from("app.kubernetes.io/managed-by"),
-            String::from("kuo-operator"),
-        );
-        let api_resounce = T::api_resource();
-        meta.owner_references = Some(vec![OwnerReference {
-            api_version: api_resounce.api_version,
-            kind: api_resounce.kind,
+        let mut owners = self.owner_references.take().unwrap_or_default();
+        let owner = OwnerReference {
+            api_version: String::from(T::api_version(&())),
+            kind: String::from(T::kind(&())),
             name: String::from(owner.name_any()),
             uid: String::from(owner.meta().uid.as_ref().unwrap()),
-            controller: Some(true),
+            controller,
             block_owner_deletion: Some(false),
-        }]);
-        meta.labels = Some(labels);
-        meta
+        };
+        owners.push(owner);
+        self.owner_references = Some(owners);
+    }
+
+    fn insert_label<F, S>(&mut self, key: F, value: S)
+    where
+        F: ToString,
+        S: ToString,
+    {
+        let mut labels = self.labels.take().unwrap_or_default();
+        labels.insert(key.to_string(), value.to_string());
+        self.labels = Some(labels);
     }
 }
