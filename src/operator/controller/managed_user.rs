@@ -12,7 +12,7 @@ use crate::{
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
-        utils::meta::ObjectMetaKuoExt,
+        utils::{meta::ObjectMetaKuoExt, resource::KuoResourceExt},
     },
 };
 
@@ -92,12 +92,12 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
     let username = user.name_unchecked();
     let csr = build_csr(&username, &pkey)?;
     let csr_name = format!("kuo-{}", &username);
-    user.update_status(
-        &ManagedUserStatus {
+    user.simple_patch_status(
+        kube::Api::all(ctx.client.clone()),
+        ManagedUserStatus {
             pkey: String::from_utf8(pkey.private_key_to_pem_pkcs8()?).unwrap(),
             cert: None,
         },
-        ctx.clone(),
     )
     .await?;
     create_kube_csr(ctx, &user, &csr, &csr_name).await?;

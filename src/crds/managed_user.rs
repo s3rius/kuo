@@ -1,11 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use kube::{
-    api::{Patch, PatchParams},
-    config::NamedContext,
-    CustomResource, ResourceExt,
-};
+use kube::{config::NamedContext, CustomResource, ResourceExt};
 use lettre::{
     message::{header::ContentType, Attachment, Mailbox, SinglePart},
     Address, AsyncTransport,
@@ -81,23 +77,6 @@ pub fn immutable_rule<T: JsonSchema>(
 }
 
 impl ManagedUser {
-    pub async fn update_status(
-        &self,
-        new_status: &ManagedUserStatus,
-        ctx: Arc<OperatorCtx>,
-    ) -> KuoResult<ManagedUser> {
-        tracing::info!("Updating status. {}", self.name_any());
-        let api = kube::Api::<ManagedUser>::all(ctx.client.clone());
-        let updated_user = api
-            .patch_status(
-                &self.name_any(),
-                &PatchParams::default(),
-                &Patch::Merge(serde_json::json!({"status": new_status})),
-            )
-            .await?;
-        Ok(updated_user)
-    }
-
     pub async fn build_kubeconfig(
         &self,
         ctx: Arc<OperatorCtx>,
