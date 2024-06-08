@@ -70,7 +70,7 @@ pub async fn create_kube_csr(
     Ok(sign_req)
 }
 
-#[tracing::instrument(skip(user, ctx), fields(email = user.spec.email), err)]
+#[tracing::instrument(skip(user, ctx), fields(username = user.name_any()), err)]
 pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResult<Action> {
     if user.name().is_none() {
         tracing::warn!("Managed user metadata has no name");

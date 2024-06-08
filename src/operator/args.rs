@@ -1,3 +1,50 @@
+#[derive(clap::Args, Debug, Clone)]
+#[group(requires = "url", requires = "from_email")]
+pub struct SMTPArgs {
+    /// SMTP server host.
+    /// This variable should specify smtp or smtps URL.
+    #[clap(long = "smtp-url", env = "KUO_OPERATOR_SMTP_URL", required = false)]
+    pub url: String,
+
+    /// SMTP server port.
+    #[clap(
+        long = "smtp-port",
+        env = "KUO_OPERATOR_SMTP_PORT",
+        default_value = "587"
+    )]
+    pub port: u16,
+
+    /// SMTP username to authenticate with.
+    #[clap(
+        long = "smtp-user",
+        env = "KUO_OPERATOR_SMTP_USER",
+        default_value = "kum"
+    )]
+    pub user: String,
+
+    /// SMTP password to authenticate with.
+    #[clap(
+        long = "smtp-password",
+        env = "KUO_OPERATOR_SMTP_PASS",
+        default_value = "kum"
+    )]
+    pub password: String,
+
+    #[clap(
+        long = "smtp-from-email",
+        env = "KUO_OPERATOR_SMTP_FROM_EMAIL",
+        required = false
+    )]
+    pub from_email: String,
+
+    #[clap(
+        long = "smtp-from-name",
+        env = "KUO_OPERATOR_SMTP_FROM_NAME",
+        default_value = "Kubernetes User Operator"
+    )]
+    pub from_name: String,
+}
+
 #[derive(clap::Parser, Debug, Clone)]
 #[clap(name = "kuo-operator", version, author, about)]
 pub struct OperatorArgs {
@@ -17,7 +64,11 @@ pub struct OperatorArgs {
     pub server_port: u16,
 
     /// Kubernetes API server host.
-    #[clap(long, env = "KUO_OPERATOR_KUBE_ADDR", default_value = "https://0.0.0.0:6443")]
+    #[clap(
+        long,
+        env = "KUO_OPERATOR_KUBE_ADDR",
+        default_value = "https://0.0.0.0:6443"
+    )]
     pub kube_addr: String,
 
     /// Name of the configmap which contains the kube root certificate authority.
@@ -29,30 +80,6 @@ pub struct OperatorArgs {
     #[clap(long, env = "DEFAULT_CERT_CM_KEY", default_value = "ca.crt")]
     pub default_cert_key: String,
 
-    /// SMTP server host.
-    /// This variable should specify smtp or smtps URL.
-    #[clap(long, env = "KUO_OPERATOR_SMTP_URL")]
-    pub smtp_url: String,
-
-    /// SMTP server port.
-    #[clap(long, env = "KUO_OPERATOR_SMTP_PORT", default_value = "587")]
-    pub smtp_port: u16,
-
-    /// SMTP username to authenticate with.
-    #[clap(long, env = "KUO_OPERATOR_SMTP_USER", default_value = "kum")]
-    pub smtp_user: String,
-
-    /// SMTP password to authenticate with.
-    #[clap(long, env = "KUO_OPERATOR_SMTP_PASS", default_value = "kum")]
-    pub smtp_pass: String,
-
-    #[clap(long, env = "KUO_OPERATOR_SMTP_FROM_EMAIL")]
-    pub smtp_from_email: String,
-
-    #[clap(
-        long,
-        env = "KUO_OPERATOR_SMTP_FROM_NAME",
-        default_value = "Kubernetes User Operator"
-    )]
-    pub smtp_from_name: String,
+    #[clap(flatten)]
+    pub smtp_args: Option<SMTPArgs>,
 }

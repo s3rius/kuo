@@ -127,7 +127,9 @@ pub async fn reconcile(
             }
             let mut new_status = user.status().cloned().unwrap();
             new_status.cert = Some(String::from_utf8(csr_signed_cert.0.clone())?);
-            user = user.simple_patch_status(kube::Api::all(ctx.client.clone()), &new_status).await?;
+            user = user
+                .simple_patch_status(kube::Api::all(ctx.client.clone()), &new_status)
+                .await?;
             user.send_kubeconfig(ctx.clone()).await?;
             delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
             return Ok(Action::requeue(Duration::from_secs(60 * 10)));

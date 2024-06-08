@@ -41,8 +41,8 @@ use super::inline_permissions::InlinePermissions;
 pub struct ManagedUserCRD {
     /// Email to use for sending kubeconfig
     #[validate(email)]
-    #[schemars(schema_with = "immutable_rule::<String>")]
-    pub email: String,
+    #[schemars(schema_with = "immutable_rule::<Option<String>>")]
+    pub email: Option<String>,
     /// User's full name. Used in email.
     pub full_name: Option<String>,
     /// List of inlined permissions.
@@ -61,7 +61,7 @@ pub struct ManagedUserStatus {
 pub fn immutable_rule<T: JsonSchema>(
     gen: &mut schemars::gen::SchemaGenerator,
 ) -> schemars::schema::Schema {
-    let schema = gen.subschema_for::<T>();
+    let schema = gen.root_schema_for::<T>();
     let mut val = serde_json::to_value(schema).unwrap();
     let obj = val.as_object_mut().unwrap();
     obj.insert(
@@ -73,7 +73,9 @@ pub fn immutable_rule<T: JsonSchema>(
             }
         ]),
     );
-    serde_json::from_value(val).unwrap()
+    let schema = serde_json::from_value(val).unwrap();
+    println!("{:?}", schema);
+    return schema;
 }
 
 impl ManagedUser {
@@ -122,17 +124,29 @@ impl ManagedUser {
     }
 
     pub async fn send_kubeconfig(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
+        let Some(email) = &self.spec.email else {
+            tracing::warn!("Cannot send kubeconfig. No email provided.",);
+            return Ok(());
+        };
+        let Some(smtp) = &ctx.smtp else {
+            tracing::warn!("Cannot send kubeconfig. SMTP not configured.",);
+            return Ok(());
+        };
+        let Some(smtp_args) = &ctx.args.smtp_args else {
+            tracing::warn!("Cannot send kubeconfig. SMTP not configured.",);
+            return Ok(());
+        };
         let kubeconfig = self.build_kubeconfig(ctx.clone()).await?;
         let kube_config_attachement = Attachment::new(String::from("kubeconfig.yaml"))
             .body(serde_yaml::to_string(&kubeconfig)?, ContentType::TEXT_PLAIN);
         let msg = lettre::Message::builder()
             .from(Mailbox::new(
-                Some(ctx.args.smtp_from_name.clone()),
-                lettre::Address::from_str(&ctx.args.smtp_from_email)?,
+                Some(smtp_args.from_name.clone()),
+                lettre::Address::from_str(&smtp_args.from_email)?,
             ))
             .to(Mailbox::new(
                 self.spec.full_name.clone(),
-                Address::from_str(self.spec.email.as_str())?,
+                Address::from_str(email)?,
             ))
             .subject("You've beed added to the Kubernetes cluster!")
             .date_now()
@@ -141,12 +155,12 @@ impl ManagedUser {
                 self.name_any(),
             )
             )).singlepart(kube_config_attachement))?;
-        ctx.smtp.send(msg).await?;
+        smtp.send(msg).await?;
         Ok(())
     }
 
     pub async fn sync_permissions(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
-        tracing::info!("Syncing permissions for user {}", self.name_any());
+        tracing::info!("Syncing permissions");
         if let Some(permissions) = &self.spec.inline_permissions {
             permissions.apply(self, ctx.clone()).await?;
         }
