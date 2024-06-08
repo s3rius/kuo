@@ -125,11 +125,9 @@ impl ManagedUser {
 
     pub async fn send_kubeconfig(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
         let Some(email) = &self.spec.email else {
-            tracing::warn!("Cannot send kubeconfig. No email provided.",);
             return Ok(());
         };
         let Some(smtp) = &ctx.smtp else {
-            tracing::warn!("Cannot send kubeconfig. SMTP not configured.",);
             return Ok(());
         };
         let Some(smtp_args) = &ctx.args.smtp_args else {
