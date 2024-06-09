@@ -18,36 +18,36 @@ path = "src/lib.rs"
 name = "kuo"
 
 [dependencies]
-schemars = "0.8.16"
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
-serde_yaml = "0.9.34"
-kube = { version = "0.91.0", features = [
+schemars = "^0.8.21"
+serde = { version = "^1.0.197", features = ["derive"] }
+serde_json = "^1.0.115"
+serde_yaml = "^0.9.34"
+kube = { version = "^0.91.0", features = [
     "runtime",
     "derive",
     "gzip",
     "client",
     "config",
 ] }
-k8s-openapi = { version = "0.22.0", features = ["latest"] }
-clap = { version = "4.5.4", features = ["derive", "env"] }
-dotenvy = "0.15.7"
-tokio = { version = "1.38.0", features = ["full"] }
-tracing = { version = "0.1.40", features = ["async-await"] }
-tracing-subscriber = { version = "0.3.18", features = ["chrono"] }
-lettre = { version = "0.11.6", features = [
+k8s-openapi = { version = "^0.22.0", features = ["latest"] }
+clap = { version = "^4.5.4", features = ["derive", "env"] }
+dotenvy = "^0.15.7"
+tokio = { version = "^1.38.0", features = ["full"] }
+tracing = { version = "^0.1.40", features = ["async-await"] }
+tracing-subscriber = { version = "^0.3.18", features = ["chrono"] }
+lettre = { version = "^0.11.6", features = [
     "tokio1",
     "tokio1-native-tls",
     "pool",
 ] }
-openssl = { version = "0.10.64", features = ["vendored"] }
-futures = "0.3.30"
-thiserror = "1.0.61"
-chrono = "0.4.38"
-base64 = "0.22.1"
+openssl = { version = "^0.10.64", features = ["vendored"] }
+futures = "^0.3.30"
+thiserror = "^1.0.61"
+chrono = "^0.4.38"
+base64 = "^0.22.1"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.153"
+libc = "^0.2.153"
 
 [profile.release]
 opt-level = 3

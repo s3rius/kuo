@@ -8,6 +8,7 @@ use crate::operator::{
 };
 
 pub async fn get_kube_cert(ctx: Arc<OperatorCtx>) -> KuoResult<String> {
+    tracing::info!("Getting the kube root certificate.");
     let cm_name = &ctx.args.default_cert_name;
     let cmap =
         kube::Api::<ConfigMap>::namespaced(ctx.client.clone(), ctx.client.default_namespace())

@@ -6,7 +6,7 @@ use lettre::{
     message::{header::ContentType, Attachment, Mailbox, SinglePart},
     Address, AsyncTransport,
 };
-use schemars::JsonSchema;
+use schemars::{schema::SchemaObject, JsonSchema};
 use serde::{Deserialize, Serialize};
 
 use crate::operator::{ctx::OperatorCtx, error::KuoResult};
@@ -34,14 +34,18 @@ use super::inline_permissions::InlinePermissions;
     }
     "#
 )]
+#[serde(rename_all = "camelCase")]
 pub struct ManagedUserCRD {
     /// Email to use for sending kubeconfig
-    #[validate(email)]
     #[schemars(schema_with = "immutable_rule::<Option<String>>")]
+    #[validate(email)]
+    #[serde(default)]
     pub email: Option<String>,
     /// User's full name. Used in email.
+    #[serde(default)]
     pub full_name: Option<String>,
     /// List of inlined permissions.
+    #[serde(default)]
     pub inline_permissions: Option<InlinePermissions>,
 }
 
@@ -66,10 +70,8 @@ pub struct ManagedUserStatus {
 pub fn immutable_rule<T: JsonSchema>(
     gen: &mut schemars::gen::SchemaGenerator,
 ) -> schemars::schema::Schema {
-    let schema = gen.root_schema_for::<T>();
-    let mut val = serde_json::to_value(schema).unwrap();
-    let obj = val.as_object_mut().unwrap();
-    obj.insert(
+    let mut schema: SchemaObject = T::json_schema(gen).into();
+    schema.extensions.insert(
         String::from("x-kubernetes-validations"),
         serde_json::json!([
             {
@@ -78,7 +80,7 @@ pub fn immutable_rule<T: JsonSchema>(
             }
         ]),
     );
-    serde_json::from_value(val).unwrap()
+    schema.into()
 }
 
 impl ManagedUser {
