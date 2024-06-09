@@ -18,4 +18,4 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/target/release/kuo-crds /bin
 COPY --from=builder /app/target/release/kuo-operator /bin
 
-CMD [ "kuo-operator" ]
+CMD [ "/bin/kuo-operator" ]
