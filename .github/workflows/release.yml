@@ -8,12 +8,6 @@ on:
     #         - released
 jobs:
     release:
-        strategy:
-          matrix:
-            platform:
-                - linux/amd64
-                - linux/arm/v7
-                - linux/arm64
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -33,7 +27,7 @@ jobs:
               with:
                   context: .
                   file: ./Dockerfile
-                  platforms: ${{ matrix.platform }}
+                  platforms: linux/amd64,linux/arm64,linux/arm/v7
                   push: true
                   tags: ghcr.io/s3rius/kuo:latest
 
