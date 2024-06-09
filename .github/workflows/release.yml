@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  push:
-    branches: [ master ]
+  release:
+    types: [released]
 
 jobs:
   get_app_version:
@@ -46,7 +46,7 @@ jobs:
 
   upload_helm:
     runs-on: ubuntu-latest
-    needs: [get_app_version]
+    needs: [get_app_version, release_image]
     permissions:
       contents: read
       packages: write
