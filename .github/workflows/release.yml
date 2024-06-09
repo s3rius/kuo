@@ -1,8 +1,8 @@
 name: Release
 on:
-    release:
-        types:
-            - released
+  push:
+    branches: [ master ]
+
 jobs:
     release:
         runs-on: ubuntu-latest
@@ -29,5 +29,5 @@ jobs:
                   file: ./Dockerfile
                   platforms: linux/amd64
                   push: true
-                  tags: ghcr.io/s3rius/kuo:latest,ghcr.io/s3rius/kuo:${{ github.ref }}
+                  tags: ghcr.io/s3rius/kuo:latest,ghcr.io/s3rius/kuo:${{ github.ref_name }}
 
