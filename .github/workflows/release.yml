@@ -62,7 +62,7 @@ jobs:
         with:
           useOCIRegistry: true
           registry-url:  oci://ghcr.io/s3rius/kuo
+          chart-folder: helm
           username: ${{ github.actor}}
           access-token: ${{ secrets.GITHUB_TOKEN }}
-          chart-folder: chart
           appVersion: ${{ needs.get_app_version.outputs.app_version }}
