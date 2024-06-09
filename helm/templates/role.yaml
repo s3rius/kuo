@@ -21,8 +21,7 @@ roleRef:
   kind: ClusterRole
   name: {{ include "kuo.fullname" . }}-cr
 subjects:
-  - apiGroup: rbac.authorization.k8s.io
-    kind: ServiceAccount
+  - kind: ServiceAccount
     name: {{ include "kuo.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
