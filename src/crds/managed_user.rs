@@ -73,9 +73,7 @@ pub fn immutable_rule<T: JsonSchema>(
             }
         ]),
     );
-    let schema = serde_json::from_value(val).unwrap();
-    println!("{:?}", schema);
-    return schema;
+    return serde_json::from_value(val).unwrap();
 }
 
 impl ManagedUser {
