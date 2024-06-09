@@ -7,9 +7,9 @@ Basically, it gives you simple CRD that allows you to add new users to the clust
 
 Easiest way to install the operator is to use the provided helm chart.
 ```bash
-helm show values oci://ghcr.io/s3rius/kuo > values.yaml
+helm show values oci://ghcr.io/s3rius/kuo/kuo > values.yaml
 # Edit values.yaml to suit your needs
-helm install kuo oci://ghcr.io/s3rius/kuo -f values.yaml
+helm install kuo oci://ghcr.io/s3rius/kuo/kuo -f values.yaml
 ```
 
 
