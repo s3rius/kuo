@@ -1,6 +1,6 @@
 [package]
 name = "kuo"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Kubernetes Operator for managing users and permissions"
 homepage = "https://github.com/s3rius/kuo"
