@@ -40,8 +40,6 @@ lettre = { version = "0.11.6", features = [
     "tokio1-native-tls",
     "pool",
 ] }
-axum = { version = "0.7.5", features = ["ws"] }
-tower-http = "0.5.2"
 openssl = { version = "0.10.64", features = ["vendored"] }
 futures = "0.3.30"
 thiserror = "1.0.61"

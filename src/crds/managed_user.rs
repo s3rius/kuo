@@ -9,11 +9,7 @@ use lettre::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::operator::{
-    ctx::OperatorCtx,
-    error::{KuoError, KuoResult},
-    utils::get_kube_cert,
-};
+use crate::operator::{ctx::OperatorCtx, error::KuoResult};
 
 use super::inline_permissions::InlinePermissions;
 
@@ -56,6 +52,8 @@ pub struct ManagedUserStatus {
     pub pkey: String,
     /// Resulting certificate for a user.
     pub cert: Option<String>,
+    /// Generated Kubeconfig
+    pub kubeconfig: Option<String>,
 }
 
 pub fn immutable_rule<T: JsonSchema>(
@@ -77,27 +75,19 @@ pub fn immutable_rule<T: JsonSchema>(
 }
 
 impl ManagedUser {
-    pub async fn build_kubeconfig(
+    pub fn build_kubeconfig(
         &self,
-        ctx: Arc<OperatorCtx>,
-    ) -> KuoResult<kube::config::Kubeconfig> {
-        let Some(ManagedUserStatus {
-            pkey: private_key,
-            cert: Some(client_cert),
-        }) = &self.status
-        else {
-            return Err(KuoError::CannotGenerateKubeconfig(format!(
-                "User {} doesn't have an approved certificate.",
-                self.name_any()
-            )));
-        };
-        let root_kube_cert = get_kube_cert(ctx.clone()).await?;
+        kube_addr: &str,
+        private_key: &str,
+        client_cert: &str,
+        root_cert: &str,
+    ) -> kube::config::Kubeconfig {
         let mut kubeconfig = kube::config::Kubeconfig::default();
         kubeconfig.clusters.push(kube::config::NamedCluster {
             name: String::from("cluster"),
             cluster: Some(kube::config::Cluster {
-                server: Some(String::from(ctx.args.kube_addr.clone())),
-                certificate_authority_data: Some(BASE64_STANDARD.encode(root_kube_cert)),
+                server: Some(String::from(kube_addr)),
+                certificate_authority_data: Some(BASE64_STANDARD.encode(root_cert)),
                 ..Default::default()
             }),
         });
@@ -118,10 +108,10 @@ impl ManagedUser {
             }),
         });
         kubeconfig.current_context = Some(String::from("default"));
-        Ok(kubeconfig)
+        kubeconfig
     }
 
-    pub async fn send_kubeconfig(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
+    pub async fn send_kubeconfig(&self, ctx: Arc<OperatorCtx>, kubeconfig: &str) -> KuoResult<()> {
         let Some(email) = &self.spec.email else {
             return Ok(());
         };
@@ -132,7 +122,6 @@ impl ManagedUser {
             tracing::warn!("Cannot send kubeconfig. SMTP not configured.",);
             return Ok(());
         };
-        let kubeconfig = self.build_kubeconfig(ctx.clone()).await?;
         let kube_config_attachement = Attachment::new(String::from("kubeconfig.yaml"))
             .body(serde_yaml::to_string(&kubeconfig)?, ContentType::TEXT_PLAIN);
         let msg = lettre::Message::builder()

@@ -96,7 +96,7 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
         kube::Api::all(ctx.client.clone()),
         ManagedUserStatus {
             pkey: String::from_utf8(pkey.private_key_to_pem_pkcs8()?).unwrap(),
-            cert: None,
+            ..Default::default()
         },
     )
     .await?;
