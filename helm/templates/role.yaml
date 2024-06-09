@@ -1,0 +1,28 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kuo.fullname" . }}-cr
+rules:
+ {{- if .Values.serviceAccount.permissions -}}
+ {{ toYaml .Values.serviceAccount.permissions | nindent 2 }}
+ {{- else }}
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+ {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kuo.fullname" . }}-crb
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kuo.fullname" . }}-cr
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: ServiceAccount
+    name: {{ include "kuo.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

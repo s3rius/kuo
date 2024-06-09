@@ -1,0 +1,5 @@
+The Kubernetes User Operator was successfully installed.
+
+Please follow the readme to start managing permissions with Kuo.
+
+README: https://github.com/s3rius/kuo

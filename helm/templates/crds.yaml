@@ -1,0 +1,3 @@
+{{ if .Values.installCrds -}}
+{{ .Files.Get "files/crds.yaml" }}
+{{- end }}

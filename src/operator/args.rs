@@ -57,12 +57,6 @@ pub struct OperatorArgs {
     )]
     pub signer_name: String,
 
-    #[clap(long, env = "KUO_OPERATOR_SERVER_HOST", default_value = "0.0.0.0")]
-    pub server_host: String,
-
-    #[clap(long, env = "KUO_OPERATOR_SERVER_PORT", default_value = "8000")]
-    pub server_port: u16,
-
     /// Kubernetes API server host.
     #[clap(
         long,

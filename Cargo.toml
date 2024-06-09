@@ -2,6 +2,11 @@
 name = "kuo"
 version = "0.1.0"
 edition = "2021"
+description = "Kubernetes Operator for managing users and permissions"
+homepage = "https://github.com/s3rius/kuo"
+repository = "https://github.com/s3rius/kuo"
+license = "MIT"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
