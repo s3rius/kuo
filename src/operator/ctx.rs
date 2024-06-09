@@ -13,6 +13,7 @@ pub struct OperatorCtx {
 }
 
 impl OperatorCtx {
+    #[inline]
     async fn get_smtp_transport(
         args: &OperatorArgs,
     ) -> KuoResult<Option<lettre::AsyncSmtpTransport<lettre::Tokio1Executor>>> {
@@ -37,7 +38,7 @@ impl OperatorCtx {
         tracing::info!("Testing SMTP connection");
         smtp.test_connection().await?;
         tracing::info!("SMTP connection successful");
-        return Ok(Some(smtp));
+        Ok(Some(smtp))
     }
 
     pub async fn new() -> KuoResult<Self> {
@@ -46,6 +47,6 @@ impl OperatorCtx {
         let client = kube::Client::try_default().await?;
         tracing::info!("Connected to Kubernetes");
         let smtp = Self::get_smtp_transport(&args).await?;
-        Ok(Self { args, client, smtp })
+        Ok(Self { client, args, smtp })
     }
 }

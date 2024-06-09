@@ -45,6 +45,7 @@ pub fn main() -> KuoResult<()> {
             .write(true)
             .append(false)
             .create(true)
+            .truncate(true)
             .open(out_file)?;
         let mut writer = BufWriter::new(output);
         writer.write_all(defs.as_bytes())?;

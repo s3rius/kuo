@@ -23,12 +23,6 @@ use crate::{
     },
 };
 
-pub async fn get_user(client: kube::Client, name: String) -> KuoResult<ManagedUser> {
-    let api = kube::Api::<ManagedUser>::all(client);
-    let user = api.get(&name).await?;
-    Ok(user)
-}
-
 fn add_condition_if_needed(csr: &mut CertificateSigningRequest) -> KuoResult<()> {
     let approve_condition = CertificateSigningRequestCondition {
         last_update_time: Some(Time(chrono::Utc::now())),
@@ -52,35 +46,35 @@ fn add_condition_if_needed(csr: &mut CertificateSigningRequest) -> KuoResult<()>
         }
         cert_status.conditions = Some(vec![approve_condition]);
         return Ok(());
-    } else {
-        csr.status = Some(
-            k8s_openapi::api::certificates::v1::CertificateSigningRequestStatus {
-                conditions: Some(vec![approve_condition]),
-                certificate: None,
-            },
-        );
-    };
+    }
+    csr.status = Some(
+        k8s_openapi::api::certificates::v1::CertificateSigningRequestStatus {
+            conditions: Some(vec![approve_condition]),
+            certificate: None,
+        },
+    );
     Ok(())
 }
 
 async fn approve_csr(csr: &mut CertificateSigningRequest, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
     tracing::info!("Approving CSR");
     add_condition_if_needed(csr)?;
-    let api = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone());
     csr.managed_fields_mut().clear();
     tracing::info!("Patching CSR");
-    api.patch_approval(
-        csr.name_unchecked().as_str(),
-        &PatchParams::default(),
-        &kube::api::Patch::Merge(&csr),
-    )
-    .await?;
+    kube::Api::<CertificateSigningRequest>::all(ctx.client.clone())
+        .patch_approval(
+            csr.name_unchecked().as_str(),
+            &PatchParams::default(),
+            &kube::api::Patch::Merge(&csr),
+        )
+        .await?;
     Ok(())
 }
 
 async fn delete_csr(ctx: Arc<OperatorCtx>, name: &str) -> KuoResult<()> {
-    let api = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone());
-    api.delete(name, &DeleteParams::default()).await?;
+    kube::Api::<CertificateSigningRequest>::all(ctx.client.clone())
+        .delete(name, &DeleteParams::default())
+        .await?;
     Ok(())
 }
 
@@ -97,55 +91,52 @@ pub async fn reconcile(
         )));
     };
     let owners = csr_arc.owner_references();
-    let mut user = match owners.get(0) {
-        Some(owner) => {
-            let user = get_user(ctx.client.clone(), owner.name.clone()).await?;
-            if user.status.is_none() {
-                return Err(KuoError::CannotReconcile(String::from(
-                    "User doesn't have a secret key.",
-                )));
-            }
-            user
+    let mut user = if let Some(owner) = owners.first() {
+        let user = kube::Api::<ManagedUser>::all(ctx.client.clone())
+            .get(&owner.name)
+            .await?;
+        if user.status.is_none() {
+            return Err(KuoError::CannotReconcile(String::from(
+                "User doesn't have a secret key.",
+            )));
         }
-        None => {
-            tracing::warn!("No owner found for CSR");
-            return Ok(Action::requeue(Duration::from_secs(60 * 5)));
-        }
+        user
+    } else {
+        tracing::warn!("No owner found for CSR");
+        return Ok(Action::requeue(Duration::from_secs(60 * 5)));
     };
-    match &csr_arc.status {
-        Some(CertificateSigningRequestStatus {
-            certificate: Some(csr_signed_cert),
-            conditions: _,
-        }) => {
-            // If the CSR has been signed and the user has a kubeconfig, we don't need to do anything.
-            let Some(ManagedUserStatus {
-                cert: Some(_),
-                kubeconfig: Some(_),
-                pkey: private_key,
-            }) = &user.status
-            else {
-                return Ok(Action::requeue(Duration::from_secs(60 * 10)));
-            };
-            let root_kube_cert = get_kube_cert(ctx.clone()).await?;
-            let user_cert = String::from_utf8(csr_signed_cert.0.clone())?;
-            let kubeconfig = serde_yaml::to_string(&user.build_kubeconfig(
-                &ctx.args.kube_addr,
-                private_key,
-                &user_cert,
-                &root_kube_cert,
-            ))?;
-            let mut new_status = user.status().cloned().unwrap();
-            new_status.kubeconfig = Some(kubeconfig.clone());
-            new_status.cert = Some(user_cert);
-            user = user
-                .simple_patch_status(kube::Api::all(ctx.client.clone()), &new_status)
-                .await?;
-
-            user.send_kubeconfig(ctx.clone(), &kubeconfig).await?;
-            delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
+    if let Some(CertificateSigningRequestStatus {
+        certificate: Some(csr_signed_cert),
+        conditions: _,
+    }) = &csr_arc.status
+    {
+        // If the CSR has been signed and the user has a kubeconfig, we don't need to do anything.
+        let Some(ManagedUserStatus {
+            cert: Some(_),
+            kubeconfig: Some(_),
+            pkey: private_key,
+        }) = &user.status
+        else {
             return Ok(Action::requeue(Duration::from_secs(60 * 10)));
-        }
-        _ => {}
+        };
+        let root_kube_cert = get_kube_cert(ctx.clone()).await?;
+        let user_cert = String::from_utf8(csr_signed_cert.0.clone())?;
+        let kubeconfig = serde_yaml::to_string(&user.build_kubeconfig(
+            &ctx.args.kube_addr,
+            private_key,
+            &user_cert,
+            &root_kube_cert,
+        ))?;
+        let mut new_status = user.status().cloned().unwrap();
+        new_status.kubeconfig = Some(kubeconfig.clone());
+        new_status.cert = Some(user_cert);
+        user = user
+            .simple_patch_status(kube::Api::all(ctx.client.clone()), &new_status)
+            .await?;
+
+        user.send_kubeconfig(ctx.clone(), &kubeconfig).await?;
+        delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
+        return Ok(Action::requeue(Duration::from_secs(60 * 10)));
     }
 
     let mut csr = Arc::unwrap_or_clone(csr_arc);

@@ -1,28 +1,37 @@
 use crate::operator::error::KuoResult;
-use kube::ResourceExt;
+use kube::{
+    api::{PatchParams, PostParams},
+    ResourceExt,
+};
 use serde::{de::DeserializeOwned, Serialize};
 
 pub(crate) trait KuoResourceExt<T>: kube::Resource + Sized {
     async fn patch_or_create(&self, api: kube::Api<T>) -> KuoResult<Self>;
-    async fn simple_patch_status<P: serde::Serialize + std::fmt::Debug>(
+    async fn simple_patch_status<P: serde::Serialize + Send>(
         &self,
         api: kube::Api<T>,
         status: P,
     ) -> KuoResult<Self>;
 }
 
-impl<K: kube::Resource<DynamicType = ()>> KuoResourceExt<K> for K
+impl<K> KuoResourceExt<K> for K
 where
-    K: kube::Resource<DynamicType = ()> + DeserializeOwned + Serialize + Clone + std::fmt::Debug,
+    K: kube::Resource<DynamicType = ()>
+        + DeserializeOwned
+        + Serialize
+        + Clone
+        + std::fmt::Debug
+        + Sync
+        + Send,
 {
     async fn patch_or_create(&self, api: kube::Api<K>) -> KuoResult<Self> {
         let meta = api.get_metadata_opt(self.name_any().as_str()).await?;
         let new_obj = if meta.is_none() {
-            api.create(&Default::default(), &self).await?
+            api.create(&PostParams::default(), self).await?
         } else {
             api.patch(
                 self.name_any().as_str(),
-                &Default::default(),
+                &PatchParams::default(),
                 &kube::api::Patch::Merge(self),
             )
             .await?
@@ -30,7 +39,7 @@ where
         Ok(new_obj)
     }
 
-    async fn simple_patch_status<P: serde::Serialize + std::fmt::Debug>(
+    async fn simple_patch_status<P: serde::Serialize + Send>(
         &self,
         api: kube::Api<K>,
         status: P,

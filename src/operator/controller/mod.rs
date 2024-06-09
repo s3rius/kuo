@@ -11,6 +11,9 @@ use super::{ctx::OperatorCtx, error::KuoResult};
 pub mod csr;
 mod managed_user;
 
+#[inline]
+#[must_use]
+#[allow(clippy::needless_pass_by_value)]
 pub fn default_on_error<T>(_: Arc<T>, error: &KuoError, _ctx: Arc<OperatorCtx>) -> Action
 where
     T: Clone
@@ -55,10 +58,10 @@ pub async fn run(ctx: Arc<OperatorCtx>) -> KuoResult<()> {
     .for_each(|_| futures::future::ready(()));
 
     tokio::select! {
-        _ = managed_user_controller => {
+        () = managed_user_controller => {
             tracing::warn!("Managed user controller stopped. Exiting.");
         }
-        _ = csr_controller => {
+        () = csr_controller => {
             tracing::warn!("CSR controller stopped. Exiting.");
         }
     }

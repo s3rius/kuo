@@ -23,7 +23,7 @@ impl ObjectMetaKuoExt for ObjectMeta {
         let owner = OwnerReference {
             api_version: String::from(T::api_version(&())),
             kind: String::from(T::kind(&())),
-            name: String::from(owner.name_any()),
+            name: owner.name_any(),
             uid: String::from(owner.meta().uid.as_ref().unwrap()),
             controller,
             block_owner_deletion: Some(false),

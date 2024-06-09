@@ -31,8 +31,8 @@ fn build_csr(
     let mut x509_name = openssl::x509::X509NameBuilder::new()?;
     x509_name.append_entry_by_text("CN", username)?;
     req_builder.set_subject_name(&x509_name.build())?;
-    req_builder.set_pubkey(&pkey)?;
-    req_builder.sign(&pkey, openssl::hash::MessageDigest::sha256())?;
+    req_builder.set_pubkey(pkey)?;
+    req_builder.sign(pkey, openssl::hash::MessageDigest::sha256())?;
     tracing::info!("CSR built successfully");
     Ok(req_builder.build())
 }
@@ -43,12 +43,11 @@ pub async fn create_kube_csr(
     x509_req: &openssl::x509::X509Req,
     csr_name: &str,
 ) -> KuoResult<CertificateSigningRequest> {
-    let cert_req_api = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone());
     let mut meta = ObjectMeta::default();
     meta.insert_label("app.kubernetes.io/managed-by", "kuo-operator");
     meta.name = Some(csr_name.to_string());
     meta.add_owner(user, None);
-    let sign_req = cert_req_api
+    let sign_req = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone())
         .create(
             &PostParams::default(),
             &CertificateSigningRequest {

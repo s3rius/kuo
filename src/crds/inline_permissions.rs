@@ -26,7 +26,7 @@ use super::managed_user::ManagedUser;
 #[derive(Debug, Serialize, Deserialize, Default, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Permission {
-    /// APIGroups is the name of the APIGroup that contains the resources.
+    /// `APIGroups` is the name of the `APIGroup` that contains the resources.
     /// If multiple API groups are specified,
     /// any action requested against one of the enumerated resources in any
     /// API group will be allowed.
@@ -34,12 +34,12 @@ pub struct Permission {
     pub api_groups: Option<Vec<String>>,
     /// Resources is a list of resources this rule applies to. '*' represents all resources.
     pub resources: Option<Vec<String>>,
-    /// ResourceNames is an optional white list of names that the rule applies to.
+    /// `ResourceNames` is an optional white list of names that the rule applies to.
     /// An empty set means that everything is allowed.
     pub resource_names: Option<Vec<String>>,
-    /// NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
+    /// `NonResourceURLs` is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for `ClusterRoles` referenced from a `ClusterRoleBinding`. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
     pub non_resource_urls: Option<Vec<String>>,
-    /// Verbs is a list of Verbs that apply to ALL the ResourceKinds contained in this rule. '*' represents all verbs.
+    /// Verbs is a list of Verbs that apply to ALL the `ResourceKinds` contained in this rule. '*' represents all verbs.
     pub verbs: Vec<String>,
 }
 
@@ -62,7 +62,7 @@ pub struct InlinePermissions {
 
 impl From<Permission> for PolicyRule {
     fn from(p: Permission) -> Self {
-        PolicyRule {
+        Self {
             api_groups: p.api_groups,
             resources: p.resources,
             resource_names: p.resource_names,
@@ -75,8 +75,7 @@ impl From<Permission> for PolicyRule {
 impl NamespacedPermissions {
     pub async fn apply(&self, user: &ManagedUser, ctx: Arc<OperatorCtx>) -> KuoResult<String> {
         let mut hasher = DefaultHasher::new();
-        let contents = serde_yaml::to_string(self)?;
-        contents.hash(&mut hasher);
+        serde_yaml::to_string(self)?.hash(&mut hasher);
         let name = format!("{}-{}", user.name_any(), hasher.finish());
         // api.get_metadata_opt(name)
         let mut role_metadata = ObjectMeta::default();
@@ -123,13 +122,17 @@ impl NamespacedPermissions {
 }
 
 impl InlinePermissions {
+    /// This function will remove all roles that are not in the `known_permissions` set.
+    ///
+    /// It iterates over all roles in the cluster and deletes the ones that are not in the `known_permissions` set,
+    /// and have the label `kuo.github.com/user` set to the username.
+    #[allow(clippy::missing_panics_doc)]
     pub async fn remove_unknown_namespaced_roles(
         user: &ManagedUser,
         known_permissions: &HashSet<String>,
         ctx: Arc<OperatorCtx>,
     ) -> KuoResult<()> {
-        let api = kube::Api::<Role>::all(ctx.client.clone());
-        let roles = api
+        let roles = kube::Api::<Role>::all(ctx.client.clone())
             .list(&ListParams {
                 label_selector: Some(format!("kuo.github.com/user={}", user.name_any())),
                 ..Default::default()
@@ -139,16 +142,24 @@ impl InlinePermissions {
             if known_permissions.contains(role.name_any().as_str()) {
                 continue;
             }
-            let api = kube::Api::<Role>::namespaced(
+            kube::Api::<Role>::namespaced(
                 ctx.client.clone(),
+                // SAFETY: We are sure that the namespace is set,
+                // because we are listing roles, which are always namespaced.
                 role.namespace().as_deref().unwrap(),
-            );
-            api.delete(role.name_any().as_str(), &DeleteParams::default())
-                .await?;
+            )
+            .delete(role.name_any().as_str(), &DeleteParams::default())
+            .await?;
         }
         Ok(())
     }
 
+    /// Apply namespaced permissions for a user.
+    ///
+    /// This function creates roles and role bindings for the user in the specified namespaces.
+    /// Also it remembers the names of the created roles in the `known_permissions` set.
+    ///
+    /// After creating all roles, it will remove all roles that are not in the `known_permissions` set.
     async fn apply_namespaced_permissions(
         &self,
         user: &ManagedUser,
@@ -177,8 +188,7 @@ impl InlinePermissions {
         known_permission: Option<String>,
         ctx: Arc<OperatorCtx>,
     ) -> KuoResult<()> {
-        let api = kube::Api::<ClusterRole>::all(ctx.client.clone());
-        let roles = api
+        let roles = kube::Api::<ClusterRole>::all(ctx.client.clone())
             .list(&ListParams {
                 label_selector: Some(format!("kuo.github.com/user={}", user.name_any())),
                 ..Default::default()
@@ -190,8 +200,8 @@ impl InlinePermissions {
                     continue;
                 }
             }
-            let api = kube::Api::<ClusterRole>::all(ctx.client.clone());
-            api.delete(role.name_any().as_str(), &DeleteParams::default())
+            kube::Api::<ClusterRole>::all(ctx.client.clone())
+                .delete(role.name_any().as_str(), &DeleteParams::default())
                 .await?;
         }
         Ok(())
@@ -205,8 +215,7 @@ impl InlinePermissions {
         let mut known_name = None;
         if let Some(namespaced_permissions) = &self.cluster_permissions {
             let mut hasher = DefaultHasher::new();
-            let contents = serde_yaml::to_string(namespaced_permissions)?;
-            contents.hash(&mut hasher);
+            serde_yaml::to_string(namespaced_permissions)?.hash(&mut hasher);
             let name = format!("{}-{}", user.name_any(), hasher.finish());
             known_name = Some(name.clone());
             // api.get_metadata_opt(name)
@@ -253,6 +262,11 @@ impl InlinePermissions {
         Self::remove_unknown_cluster_roles(user, known_name, ctx.clone()).await?;
         Ok(())
     }
+
+    /// Apply inlined permissions for a user.
+    ///
+    /// This function will sync all permissions for the user.
+    /// But it won't delete any permissions that were not created by this operator.
     pub async fn apply(&self, user: &ManagedUser, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
         self.apply_namespaced_permissions(user, ctx.clone()).await?;
         self.apply_cluster_permissions(user, ctx).await?;

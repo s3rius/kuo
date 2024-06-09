@@ -56,6 +56,13 @@ pub struct ManagedUserStatus {
     pub kubeconfig: Option<String>,
 }
 
+/// Add immutable rule to the field.
+///
+/// This rule will prevent the field from being changed.
+///
+/// # Panics
+///
+/// This function will panic if the generated schema is incorrect.
 pub fn immutable_rule<T: JsonSchema>(
     gen: &mut schemars::gen::SchemaGenerator,
 ) -> schemars::schema::Schema {
@@ -71,10 +78,12 @@ pub fn immutable_rule<T: JsonSchema>(
             }
         ]),
     );
-    return serde_json::from_value(val).unwrap();
+    serde_json::from_value(val).unwrap()
 }
 
 impl ManagedUser {
+    #[inline]
+    #[must_use]
     pub fn build_kubeconfig(
         &self,
         kube_addr: &str,
@@ -92,7 +101,7 @@ impl ManagedUser {
             }),
         });
         kubeconfig.auth_infos.push(kube::config::NamedAuthInfo {
-            name: String::from(self.name_any()),
+            name: self.name_any(),
             auth_info: Some(kube::config::AuthInfo {
                 client_certificate_data: Some(BASE64_STANDARD.encode(client_cert)),
                 client_key_data: Some(BASE64_STANDARD.encode(private_key).into()),
@@ -103,7 +112,7 @@ impl ManagedUser {
             name: String::from("default"),
             context: Some(kube::config::Context {
                 cluster: String::from("cluster"),
-                user: String::from(self.name_any()),
+                user: self.name_any(),
                 ..Default::default()
             }),
         });
@@ -144,6 +153,7 @@ impl ManagedUser {
         Ok(())
     }
 
+    #[inline]
     pub async fn sync_permissions(&self, ctx: Arc<OperatorCtx>) -> KuoResult<()> {
         tracing::info!("Syncing permissions");
         if let Some(permissions) = &self.spec.inline_permissions {
