@@ -6,7 +6,7 @@ use kube::{runtime::controller::Action, Api};
 
 use crate::{crds::managed_user::ManagedUser, operator::error::KuoError};
 
-use super::ctx::OperatorCtx;
+use super::{ctx::OperatorCtx, error::KuoResult};
 
 pub mod csr;
 mod managed_user;
@@ -28,7 +28,7 @@ where
     }
 }
 
-pub async fn run(ctx: Arc<OperatorCtx>) -> anyhow::Result<()> {
+pub async fn run(ctx: Arc<OperatorCtx>) -> KuoResult<()> {
     tracing::info!("Running operator controller");
     let managed_user_controller = kube::runtime::Controller::new(
         Api::<ManagedUser>::all(ctx.client.clone()),

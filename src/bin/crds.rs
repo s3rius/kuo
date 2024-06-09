@@ -6,6 +6,7 @@ use std::{
 use clap::Parser;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::CustomResourceExt;
+use kuo::operator::error::KuoResult;
 use serde::Serialize;
 
 #[cfg(unix)]
@@ -16,7 +17,7 @@ struct CrdsArgs {
     out_file: Option<String>,
 }
 
-fn generate_crds_def(crds: Vec<CustomResourceDefinition>) -> anyhow::Result<String> {
+fn generate_crds_def(crds: Vec<CustomResourceDefinition>) -> KuoResult<String> {
     let mut serializer = serde_yaml::Serializer::new(Vec::new());
     for crd in crds {
         eprintln!("- Adding {}/{}", crd.spec.group, crd.spec.names.kind);
@@ -25,7 +26,7 @@ fn generate_crds_def(crds: Vec<CustomResourceDefinition>) -> anyhow::Result<Stri
     let serialized = serializer.into_inner()?;
     String::from_utf8(serialized).map_err(Into::into)
 }
-pub fn main() -> anyhow::Result<()> {
+pub fn main() -> KuoResult<()> {
     #[cfg(unix)]
     {
         unsafe {

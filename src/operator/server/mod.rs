@@ -3,13 +3,13 @@ use std::sync::Arc;
 use axum::routing::get;
 use tower_http::trace::TraceLayer;
 
-use super::ctx::OperatorCtx;
+use super::{ctx::OperatorCtx, error::KuoResult};
 
 async fn health() -> &'static str {
     "OK"
 }
 
-pub async fn run(ctx: Arc<OperatorCtx>) -> anyhow::Result<()> {
+pub async fn run(ctx: Arc<OperatorCtx>) -> KuoResult<()> {
     tracing::info!("Starting server");
     // build our application with a route
     let app = axum::Router::new().route("/health", get(health)).layer(
