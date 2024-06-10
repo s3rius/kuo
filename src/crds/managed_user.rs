@@ -134,7 +134,7 @@ impl ManagedUser {
             return Ok(());
         };
         let kube_config_attachement = Attachment::new(String::from("kubeconfig.yaml"))
-            .body(serde_yaml::to_string(&kubeconfig)?, ContentType::TEXT_PLAIN);
+            .body(String::from(kubeconfig), ContentType::TEXT_PLAIN);
         let msg = lettre::Message::builder()
             .from(Mailbox::new(
                 Some(smtp_args.from_name.clone()),
