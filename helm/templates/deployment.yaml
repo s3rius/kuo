@@ -34,8 +34,27 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/kuo-operator
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - containerPort: {{ default 9000 .Values.envs.KUO_OPERATOR_SERVER_PORT }}
+              name: http
+          readinessProbe:
+            httpGet:
+              port: http
+              path: /api/health
+            initialDelaySeconds: 4
+            periodSeconds: 4
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /api/health
+            initialDelaySeconds: 4
+            periodSeconds: 4
+            timeoutSeconds: 2
           {{- with .Values.envs }}
           env:
             {{- range $key, $val := . }}

@@ -1,0 +1,159 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: managedusers.kuo.github.io
+spec:
+  group: kuo.github.io
+  names:
+    categories: []
+    kind: ManagedUser
+    plural: managedusers
+    shortNames: []
+    singular: manageduser
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: User's email
+      jsonPath: .spec.email
+      name: Email
+      type: string
+    - description: User's real name
+      jsonPath: .spec.full_name
+      name: Full Name
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for ManagedUserCRD via `CustomResource`
+        properties:
+          spec:
+            properties:
+              email:
+                description: Email to use for sending kubeconfig
+                format: email
+                nullable: true
+                type: string
+                x-kubernetes-validations:
+                - message: Cannot change field. The value is immutable.
+                  rule: self == oldSelf
+              fullName:
+                description: User's full name. Used in email.
+                nullable: true
+                type: string
+              inlinePermissions:
+                description: List of inlined permissions.
+                nullable: true
+                properties:
+                  clusterPermissions:
+                    description: List of cluster-wide permissions.
+                    items:
+                      properties:
+                        apiGroups:
+                          description: '`APIGroups` is the name of the `APIGroup` that contains the resources. If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed. "" represents the core API group and "*" represents all API groups.'
+                          items:
+                            type: string
+                          nullable: true
+                          type: array
+                        nonResourceUrls:
+                          description: '`NonResourceURLs` is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for `ClusterRoles` referenced from a `ClusterRoleBinding`. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.'
+                          items:
+                            type: string
+                          nullable: true
+                          type: array
+                        resourceNames:
+                          description: '`ResourceNames` is an optional white list of names that the rule applies to. An empty set means that everything is allowed.'
+                          items:
+                            type: string
+                          nullable: true
+                          type: array
+                        resources:
+                          description: Resources is a list of resources this rule applies to. '*' represents all resources.
+                          items:
+                            type: string
+                          nullable: true
+                          type: array
+                        verbs:
+                          description: Verbs is a list of Verbs that apply to ALL the `ResourceKinds` contained in this rule. '*' represents all verbs.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - verbs
+                      type: object
+                    nullable: true
+                    type: array
+                  namespacedPermissions:
+                    description: List of namespaced permissions.
+                    items:
+                      properties:
+                        namespace:
+                          type: string
+                        permissions:
+                          items:
+                            properties:
+                              apiGroups:
+                                description: '`APIGroups` is the name of the `APIGroup` that contains the resources. If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed. "" represents the core API group and "*" represents all API groups.'
+                                items:
+                                  type: string
+                                nullable: true
+                                type: array
+                              nonResourceUrls:
+                                description: '`NonResourceURLs` is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for `ClusterRoles` referenced from a `ClusterRoleBinding`. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.'
+                                items:
+                                  type: string
+                                nullable: true
+                                type: array
+                              resourceNames:
+                                description: '`ResourceNames` is an optional white list of names that the rule applies to. An empty set means that everything is allowed.'
+                                items:
+                                  type: string
+                                nullable: true
+                                type: array
+                              resources:
+                                description: Resources is a list of resources this rule applies to. '*' represents all resources.
+                                items:
+                                  type: string
+                                nullable: true
+                                type: array
+                              verbs:
+                                description: Verbs is a list of Verbs that apply to ALL the `ResourceKinds` contained in this rule. '*' represents all verbs.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - verbs
+                            type: object
+                          type: array
+                      required:
+                      - namespace
+                      - permissions
+                      type: object
+                    nullable: true
+                    type: array
+                type: object
+            type: object
+          status:
+            nullable: true
+            properties:
+              cert:
+                description: Resulting certificate for a user.
+                nullable: true
+                type: string
+              kubeconfig:
+                description: Generated Kubeconfig
+                nullable: true
+                type: string
+              pkey:
+                description: This is a private key, used by the client. This key is used for issuing certificate sign requests.
+                type: string
+            required:
+            - pkey
+            type: object
+        required:
+        - spec
+        title: ManagedUser
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
