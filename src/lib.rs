@@ -17,3 +17,5 @@
 ]
 pub mod crds;
 pub mod operator;
+pub mod server;
+pub mod args;
