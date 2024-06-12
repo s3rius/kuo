@@ -56,21 +56,23 @@ jobs:
         with:
           toolchain: stable
       - name: Build CRDs
-        run: cargo run --bin kuo-crds helm/templates/files/crds.yaml
-      - name: Push Helm chart to OCI compatible registry (Github)
-        uses: bsord/helm-push@master
-        with:
-          useOCIRegistry: true
-          registry-url:  oci://ghcr.io/s3rius/charts
-          chart-folder: helm
-          username: ${{ github.actor}}
-          access-token: ${{ secrets.GITHUB_TOKEN }}
-          appVersion: ${{ needs.get_app_version.outputs.app_version }}
+        run: cargo run --bin kuo-crds helm/crds/crds.yaml
+      - name: Build Helm chart
+        run: |
+          helm package \ 
+            --app-version "${{ needs.get_app_version.outputs.app_version }}" \ 
+            --dependency-update \
+            ./helm
+          helm show chart *.tgz
+          helm registry login -u ${{ github.actor}} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+          helm push *.tgz oci://ghcr.io/s3rius/charts
+        env:
+          HELM_EXPERIMENTAL_OCI: 1
       - name: Upload CRDs to the release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: helm/templates/files/crds.yaml
+          file: helm/crds/crds.yaml
           asset_name: crds.yaml
           tag: ${{ github.ref }}
           overwrite: true
