@@ -3,7 +3,9 @@ use std::time::Duration;
 use clap::Parser;
 use lettre::transport::smtp::authentication::Credentials;
 
-use super::{args::OperatorArgs, error::KuoResult};
+use crate::args::OperatorArgs;
+
+use super::error::KuoResult;
 
 #[derive(Clone)]
 pub struct OperatorCtx {
