@@ -1,6 +1,7 @@
 apiVersion: v2
 name: kuo
-description: A Helm chart for Kubernetes
+description: A Helm chart for kubernetes user operator
+icon: https://raw.githubusercontent.com/s3rius/kuo/develop/logo.svg
 
 # A chart can be either an 'application' or a 'library' chart.
 #
