@@ -1,4 +1,7 @@
-# Kubernetes User Operator
+<div align="center">
+<img src="./logo.svg" width="200" height="200">
+<h2>Kubernetes User Operator</h2>
+</div>
 
 Simple kubernetes operator for managing users in a cluster.
 Basically, it gives you simple CRD that allows you to add new users to the cluster, or manage existing ones.
