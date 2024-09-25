@@ -12,17 +12,16 @@ use k8s_openapi::{
 };
 use kube::{
     api::{DeleteParams, PatchParams},
-    core::object::HasStatus,
     runtime::{controller::Action, reflector::Lookup},
     ResourceExt,
 };
 
 use crate::{
-    crds::managed_user::{ManagedUser, ManagedUserSecretData},
+    crds::managed_user::ManagedUser,
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
-        utils::{get_kube_cert, resource::KuoResourceExt},
+        utils::get_kube_cert,
     },
 };
 

@@ -15,7 +15,7 @@ use crate::{
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
-        utils::{meta::ObjectMetaKuoExt, resource::KuoResourceExt},
+        utils::meta::ObjectMetaKuoExt,
     },
 };
 

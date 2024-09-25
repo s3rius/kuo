@@ -7,11 +7,6 @@ use serde::{de::DeserializeOwned, Serialize};
 
 pub(crate) trait KuoResourceExt<T>: kube::Resource + Sized {
     async fn patch_or_create(&self, api: kube::Api<T>) -> KuoResult<Self>;
-    async fn simple_patch_status<P: serde::Serialize + Send>(
-        &self,
-        api: kube::Api<T>,
-        status: P,
-    ) -> KuoResult<Self>;
 }
 
 impl<K> KuoResourceExt<K> for K
@@ -37,20 +32,5 @@ where
             .await?
         };
         Ok(new_obj)
-    }
-
-    async fn simple_patch_status<P: serde::Serialize + Send>(
-        &self,
-        api: kube::Api<K>,
-        status: P,
-    ) -> KuoResult<Self> {
-        let updated_obj = api
-            .patch_status(
-                &self.name_any(),
-                &kube::api::PatchParams::default(),
-                &kube::api::Patch::Merge(serde_json::json!({"status": status})),
-            )
-            .await?;
-        Ok(updated_obj)
     }
 }

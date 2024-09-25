@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use k8s_openapi::{api::core::v1::Secret, Metadata};
+use k8s_openapi::api::core::v1::Secret;
 use kube::{api::ObjectMeta, config::NamedContext, CustomResource, ResourceExt};
 use lettre::{
     message::{header::ContentType, Attachment, Mailbox, SinglePart},
