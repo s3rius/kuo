@@ -2,7 +2,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::{api::ObjectMeta, ResourceExt};
 
 pub trait ObjectMetaKuoExt: Default {
-    fn add_owner<T>(&mut self, owner: &T, controller: Option<bool>)
+    fn add_owner<T>(&mut self, owner: &T)
     where
         T: kube::Resource<DynamicType = ()>,
         T::DynamicType: Eq + std::hash::Hash + Clone;
@@ -14,7 +14,7 @@ pub trait ObjectMetaKuoExt: Default {
 }
 
 impl ObjectMetaKuoExt for ObjectMeta {
-    fn add_owner<T>(&mut self, owner: &T, controller: Option<bool>)
+    fn add_owner<T>(&mut self, owner: &T)
     where
         T: kube::Resource<DynamicType = ()>,
         T::DynamicType: Eq + std::hash::Hash + Clone,
@@ -25,7 +25,7 @@ impl ObjectMetaKuoExt for ObjectMeta {
             kind: String::from(T::kind(&())),
             name: owner.name_any(),
             uid: String::from(owner.meta().uid.as_ref().unwrap()),
-            controller,
+            controller: None,
             block_owner_deletion: Some(false),
         };
         owners.push(owner);

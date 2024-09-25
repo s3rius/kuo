@@ -6,6 +6,8 @@ pub enum KuoError {
     CannotReconcile(String),
     #[error("CSR was denied")]
     CSRDenied,
+    #[error("Cannot parse user secret data")]
+    InvalidUserSecretData,
     #[error("Cannot get root kube certificate. Reason: {0}")]
     CannotGetRootCert(String),
     #[error("Cannot generate kubeconfig. Reason: {0}")]
