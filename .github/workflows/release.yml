@@ -52,6 +52,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Install core utils
+        run:
+          apt-get update
+          apt-get install coreutils
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
@@ -62,12 +66,9 @@ jobs:
         run: cargo run --bin kuo-crds helm/crds/crds.yaml
       - name: Build Helm chart
         run: |
-          helm package \ 
-            --app-version "${{ needs.get_app_version.outputs.app_version }}" \ 
-            --dependency-update \
-            ./helm
+          helm package --app-version "${{ needs.get_app_version.outputs.app_version }}" --dependency-update ./helm
           helm show chart *.tgz
-          helm registry login -u ${{ github.actor}} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+          helm registry login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
           helm push *.tgz oci://ghcr.io/s3rius/charts
         env:
           HELM_EXPERIMENTAL_OCI: 1
