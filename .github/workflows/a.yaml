@@ -1,0 +1,37 @@
+on:
+    push:
+        branches: 
+            - master
+
+
+jobs:
+  upload_helm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - uses: azure/setup-helm@v4.2.0
+        with:
+          version: latest
+      - name: Build CRDs
+        run: cargo run --bin kuo-crds helm/crds/crds.yaml
+      - name: Build Helm chart
+        run: |
+          helm package --app-version "0.0.0" --dependency-update ./helm
+          helm show chart *.tgz
+          helm registry login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+        env:
+          HELM_EXPERIMENTAL_OCI: 1
+      - name: Upload CRDs to the release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: helm/crds/crds.yaml
+          asset_name: crds.yaml
+          tag: ${{ github.ref }}
+          overwrite: true

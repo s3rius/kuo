@@ -61,7 +61,7 @@ jobs:
       - name: Build CRDs
         run: cargo run --bin kuo-crds helm/crds/crds.yaml
       - name: Build Helm chart
-        run: >-
+        run: |
           helm package --app-version "${{ needs.get_app_version.outputs.app_version }}" --dependency-update ./helm
           helm show chart *.tgz
           helm registry login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
