@@ -126,6 +126,7 @@ pub async fn reconcile(
         let user_cert = String::from_utf8(csr_signed_cert.0.clone())?;
         let kubeconfig = serde_yaml::to_string(&user.build_kubeconfig(
             &ctx.args.kube_addr,
+            ctx.args.cluster_name.clone(),
             users_secret.pkey.as_str(),
             &user_cert,
             &root_kube_cert,

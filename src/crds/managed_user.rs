@@ -144,13 +144,27 @@ impl ManagedUser {
     pub fn build_kubeconfig(
         &self,
         kube_addr: &str,
+        cluster_name: Option<String>,
         private_key: &str,
         client_cert: &str,
         root_cert: &str,
     ) -> kube::config::Kubeconfig {
         let mut kubeconfig = kube::config::Kubeconfig::default();
+        let cluster_name_string = cluster_name
+            .as_ref()
+            .unwrap_or(&String::from("cluster"))
+            .to_string();
+        // This will create either {cluster}-{username} string or just {username}.
+        let username = format!(
+            "{}{}",
+            cluster_name
+                .as_ref()
+                .map(|name| format!("{name}-"))
+                .unwrap_or(String::from("")),
+            self.name_any()
+        );
         kubeconfig.clusters.push(kube::config::NamedCluster {
-            name: String::from("cluster"),
+            name: cluster_name_string.clone(),
             cluster: Some(kube::config::Cluster {
                 server: Some(String::from(kube_addr)),
                 certificate_authority_data: Some(BASE64_STANDARD.encode(root_cert)),
@@ -158,7 +172,7 @@ impl ManagedUser {
             }),
         });
         kubeconfig.auth_infos.push(kube::config::NamedAuthInfo {
-            name: self.name_any(),
+            name: username.clone(),
             auth_info: Some(kube::config::AuthInfo {
                 client_certificate_data: Some(BASE64_STANDARD.encode(client_cert)),
                 client_key_data: Some(BASE64_STANDARD.encode(private_key).into()),
@@ -166,10 +180,13 @@ impl ManagedUser {
             }),
         });
         kubeconfig.contexts.push(NamedContext {
-            name: String::from("default"),
+            name: cluster_name
+                .as_ref()
+                .unwrap_or(&String::from("default"))
+                .to_string(),
             context: Some(kube::config::Context {
-                cluster: String::from("cluster"),
-                user: self.name_any(),
+                cluster: cluster_name_string,
+                user: username,
                 ..Default::default()
             }),
         });
@@ -190,6 +207,11 @@ impl ManagedUser {
         };
         let kube_config_attachement = Attachment::new(String::from("kubeconfig.yaml"))
             .body(String::from(kubeconfig), ContentType::TEXT_PLAIN);
+        let cluster_name = ctx
+            .args
+            .cluster_name
+            .as_ref()
+            .map_or(String::new(), |name| format!(" {name}"));
         let msg = lettre::Message::builder()
             .from(Mailbox::new(
                 Some(smtp_args.from_name.clone()),
@@ -199,10 +221,10 @@ impl ManagedUser {
                 self.spec.full_name.clone(),
                 Address::from_str(email)?,
             ))
-            .subject("You've beed added to the Kubernetes cluster!")
+            .subject(format!("You've beed added to the cluster{cluster_name}!"))
             .date_now()
             .multipart(lettre::message::MultiPart::mixed().singlepart(SinglePart::html(format!(
-                "Hello, <b>{}</b>! You've been added to the Kubernetes cluster. Please download the kubeconfig.",
+                "Hello, <b>{}</b>! You've been added to the Kubernetes cluster{cluster_name}. Please download the kubeconfig.",
                 self.name_any(),
             )
             )).singlepart(kube_config_attachement))?;

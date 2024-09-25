@@ -57,7 +57,6 @@ pub struct SMTPArgs {
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct ServerArgs {
-
     /// Host to bind the server to.
     #[clap(
         id = "server-host",
@@ -104,7 +103,7 @@ pub struct OperatorArgs {
     #[clap(
         id = "default-cert-name",
         long = "default-cert-name",
-        env = "DEFAULT_CERT_CM_NAME",
+        env = "KUO_OPERATOR_DEFAULT_CERT_CM_NAME",
         default_value = "kube-root-ca.crt"
     )]
     pub default_cert_name: String,
@@ -113,10 +112,18 @@ pub struct OperatorArgs {
     #[clap(
         id = "default-cert-key",
         long = "default-cert-key",
-        env = "DEFAULT_CERT_CM_KEY",
+        env = "KUO_OPERATOR_DEFAULT_CERT_CM_KEY",
         default_value = "ca.crt"
     )]
     pub default_cert_key: String,
+
+    #[clap(
+        id = "cluster-name",
+        long = "cluster-name",
+        env = "KUO_OPERATOR_CLUSTER_NAME",
+        default_value = None,
+    )]
+    pub cluster_name: Option<String>,
 
     #[clap(flatten)]
     pub smtp_args: Option<SMTPArgs>,
