@@ -30,12 +30,12 @@ spec: {}
 
 This will create a new user with the name `s3rius` in the cluster. Once the user is created, operator
 will try to create a CertificateSigningRequest for the user, and approve it. After that, the generated
-kubeconfig will be stored in the `ManagedUser/status/kubeconfig` field.
+kubeconfig will be stored in the `/data/kubeconfig` field of the secret named `{username}-data`.
 
 To get the generated kubeconfig, you can use the following command:
 
 ```bash
-kubectl get  managedusers.kuo.github.io s3rius -o=jsonpath="{.status.kubeconfig}"
+kubectl get secrets s3rius-data -o=jsonpath="{.data.kubeconfig}" | base64 -d
 ```
 
 This will output the kubeconfig for the user `s3rius`.
@@ -95,26 +95,30 @@ This will send an email with the kubeconfig to the email address `s3riussan@gmai
 Usage: kuo-operator [OPTIONS]
 
 Options:
-      --signer-name <SIGNER_NAME>
+      --signer-name <signer-name>
           Name of the signer which should sign all certificate signing requests created by the operator [env: KUO_OPERATOR_SIGNER_NAME=] [default: kubernetes.io/kube-apiserver-client]
-      --kube-addr <KUBE_ADDR>
-          Kubernetes API server host [env: KUO_OPERATOR_KUBE_ADDR=https://0.0.0.0:37995] [default: https://0.0.0.0:6443]
-      --default-cert-name <DEFAULT_CERT_NAME>
+      --kube-addr <kube-addr>
+          Kubernetes API server host [env: KUO_OPERATOR_KUBE_ADDR=] [default: https://0.0.0.0:6443]
+      --default-cert-name <default-cert-name>
           Name of the configmap which contains the kube root certificate authority. This certificate authority will be used to verify the kube api server [env: DEFAULT_CERT_CM_NAME=] [default: kube-root-ca.crt]
-      --default-cert-key <DEFAULT_CERT_KEY>
+      --default-cert-key <default-cert-key>
           Key of the configmap which contains the kube root certificate authority data [env: DEFAULT_CERT_CM_KEY=] [default: ca.crt]
-      --smtp-url <URL>
-          SMTP server host. This variable should specify smtp or smtps URL [env: KUO_OPERATOR_SMTP_URL=smtp://mail.le-memese.com?tls=required]
-      --smtp-port <PORT>
-          SMTP server port [env: KUO_OPERATOR_SMTP_PORT=587] [default: 587]
-      --smtp-user <USER>
-          SMTP username to authenticate with [env: KUO_OPERATOR_SMTP_USER=kuo@le-memese.com] [default: kum]
-      --smtp-password <PASSWORD>
-          SMTP password to authenticate with [env: KUO_OPERATOR_SMTP_PASS=123321] [default: kum]
-      --smtp-from-email <FROM_EMAIL>
-          [env: KUO_OPERATOR_SMTP_FROM_EMAIL=kuo@le-memese.com]
-      --smtp-from-name <FROM_NAME>
+      --smtp-url <smtp-url>
+          SMTP server host. This variable should specify smtp or smtps URL [env: KUO_OPERATOR_SMTP_URL=]
+      --smtp-port <smtp-port>
+          SMTP server port [env: KUO_OPERATOR_SMTP_PORT=] [default: 587]
+      --smtp-user <smtp-user>
+          SMTP username to authenticate with [env: KUO_OPERATOR_SMTP_USER=] [default: kum]
+      --smtp-password <smtp-password>
+          SMTP password to authenticate with [env: KUO_OPERATOR_SMTP_PASS=] [default: kum]
+      --smtp-from-email <smtp-from-email>
+          [env: KUO_OPERATOR_SMTP_FROM_EMAIL=]
+      --smtp-from-name <smtp-from-name>
           [env: KUO_OPERATOR_SMTP_FROM_NAME=] [default: "Kubernetes User Operator"]
+      --server-host <server-host>
+          Host to bind the server to [env: KUO_OPERATOR_SERVER_HOST=] [default: 0.0.0.0]
+      --server-port <server-port>
+          Port to bind the server to [env: KUO_OPERATOR_SERVER_PORT=] [default: 9000]
   -h, --help
           Print help
   -V, --version
