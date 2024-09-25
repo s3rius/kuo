@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use k8s_openapi::api::core::v1::Secret;
@@ -68,7 +68,7 @@ pub struct ManagedUserSecretData {
 
 impl From<&ManagedUserSecretData> for std::collections::BTreeMap<String, k8s_openapi::ByteString> {
     fn from(value: &ManagedUserSecretData) -> Self {
-        let mut map = BTreeMap::new();
+        let mut map = Self::new();
         map.insert(
             "pkey".to_string(),
             k8s_openapi::ByteString(value.pkey.bytes().collect()),
@@ -107,7 +107,7 @@ impl TryFrom<std::collections::BTreeMap<String, k8s_openapi::ByteString>>
         let kubeconfig = value
             .get("kubeconfig")
             .and_then(|v| String::from_utf8(v.0.clone()).ok());
-        Ok(ManagedUserSecretData {
+        Ok(Self {
             pkey,
             cert,
             kubeconfig,
@@ -231,8 +231,10 @@ impl ManagedUser {
         data: &ManagedUserSecretData,
     ) -> KuoResult<()> {
         let name = format!("{}-data", self.name_any());
-        let mut metadata = ObjectMeta::default();
-        metadata.name = Some(name);
+        let mut metadata = ObjectMeta {
+            name: Some(name),
+            ..Default::default()
+        };
         metadata.add_owner(self);
         let secret = Secret {
             data: Some(data.into()),

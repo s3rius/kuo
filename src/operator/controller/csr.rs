@@ -94,17 +94,20 @@ pub async fn reconcile(
     };
     let owners = csr_arc.owner_references();
     let user = if let Some(owner) = owners.first() {
-        let user = kube::Api::<ManagedUser>::all(ctx.client.clone())
+        kube::Api::<ManagedUser>::all(ctx.client.clone())
             .get(&owner.name)
-            .await?;
-        user
+            .await?
     } else {
         tracing::warn!("No owner found for CSR");
         return Ok(Action::requeue(Duration::from_secs(60 * 5)));
     };
-    let secrets_api =
-        kube::Api::<Secret>::namespaced(ctx.client.clone(), ctx.client.default_namespace());
-    let Some(mut users_secret) = user.get_secret(secrets_api.clone()).await? else {
+    let Some(mut users_secret) = user
+        .get_secret(kube::Api::<Secret>::namespaced(
+            ctx.client.clone(),
+            ctx.client.default_namespace(),
+        ))
+        .await?
+    else {
         return Err(KuoError::CannotReconcile(String::from(
             "User doesn't have a secret key.",
         )));
@@ -129,7 +132,11 @@ pub async fn reconcile(
         ))?;
         users_secret.kubeconfig = Some(kubeconfig.clone());
         users_secret.cert = Some(user_cert);
-        user.set_secret(secrets_api, &users_secret).await?;
+        user.set_secret(
+            kube::Api::namespaced(ctx.client.clone(), ctx.client.default_namespace()),
+            &users_secret,
+        )
+        .await?;
         user.send_kubeconfig(ctx.clone(), &kubeconfig).await?;
         delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
         return Ok(Action::requeue(Duration::from_secs(60 * 10)));

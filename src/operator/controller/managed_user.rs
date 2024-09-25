@@ -87,9 +87,12 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
         )));
     }
     user.sync_permissions(ctx.clone()).await?;
-    let secrets_api =
-        kube::Api::<Secret>::namespaced(ctx.client.clone(), ctx.client.default_namespace());
-    let users_secret = user.get_secret(secrets_api.clone()).await?;
+    let users_secret = user
+        .get_secret(kube::Api::<Secret>::namespaced(
+            ctx.client.clone(),
+            ctx.client.default_namespace(),
+        ))
+        .await?;
     if users_secret.is_some() {
         return Ok(Action::requeue(Duration::from_secs(60 * 10)));
     }
@@ -102,8 +105,11 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
         pkey: pkey_data,
         ..ManagedUserSecretData::default()
     };
-    user.set_secret(secrets_api.clone(), &users_secret_data)
-        .await?;
+    user.set_secret(
+        kube::Api::<Secret>::namespaced(ctx.client.clone(), ctx.client.default_namespace()),
+        &users_secret_data,
+    )
+    .await?;
 
     create_kube_csr(ctx, &user, &csr, &csr_name).await?;
     Ok(Action::requeue(Duration::from_secs(60 * 5)))
