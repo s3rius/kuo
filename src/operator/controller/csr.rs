@@ -1,9 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use k8s_openapi::{
-    api::certificates::v1::{
-        CertificateSigningRequest, CertificateSigningRequestCondition,
-        CertificateSigningRequestStatus,
+    api::{
+        certificates::v1::{
+            CertificateSigningRequest, CertificateSigningRequestCondition,
+            CertificateSigningRequestStatus,
+        },
+        core::v1::Secret,
     },
     apimachinery::pkg::apis::meta::v1::Time,
 };
@@ -15,7 +18,7 @@ use kube::{
 };
 
 use crate::{
-    crds::managed_user::{ManagedUser, ManagedUserStatus},
+    crds::managed_user::{ManagedUser, ManagedUserSecretData},
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
@@ -91,63 +94,46 @@ pub async fn reconcile(
         )));
     };
     let owners = csr_arc.owner_references();
-    let mut user = if let Some(owner) = owners.first() {
+    let user = if let Some(owner) = owners.first() {
         let user = kube::Api::<ManagedUser>::all(ctx.client.clone())
             .get(&owner.name)
             .await?;
-        if user.status.is_none() {
-            return Err(KuoError::CannotReconcile(String::from(
-                "User doesn't have a secret key.",
-            )));
-        }
         user
     } else {
         tracing::warn!("No owner found for CSR");
         return Ok(Action::requeue(Duration::from_secs(60 * 5)));
     };
+    let secrets_api =
+        kube::Api::<Secret>::namespaced(ctx.client.clone(), ctx.client.default_namespace());
+    let Some(mut users_secret) = user.get_secret(secrets_api.clone()).await? else {
+        return Err(KuoError::CannotReconcile(String::from(
+            "User doesn't have a secret key.",
+        )));
+    };
+    if users_secret.cert.is_some() && users_secret.kubeconfig.is_some() {
+        tracing::debug!("Certificate and kubeconfig exist for the user.");
+        return Ok(Action::requeue(Duration::from_secs(60 * 10)));
+    }
     if let Some(CertificateSigningRequestStatus {
         certificate: Some(csr_signed_cert),
         conditions: _,
     }) = &csr_arc.status
     {
-        // If the CSR has been signed and the user has a kubeconfig, we don't need to do anything.
-        match &user.status {
-            Some(ManagedUserStatus {
-                cert: None,
-                kubeconfig: None,
-                pkey: private_key,
-            }) => {
-                tracing::info!("CSR has been signed. Generating kubeconfig.");
-                let root_kube_cert = get_kube_cert(ctx.clone()).await?;
-                let user_cert = String::from_utf8(csr_signed_cert.0.clone())?;
-                let kubeconfig = serde_yaml::to_string(&user.build_kubeconfig(
-                    &ctx.args.kube_addr,
-                    private_key,
-                    &user_cert,
-                    &root_kube_cert,
-                ))?;
-                let mut new_status = user.status().cloned().unwrap();
-                new_status.kubeconfig = Some(kubeconfig.clone());
-                new_status.cert = Some(user_cert);
-                user = user
-                    .simple_patch_status(kube::Api::all(ctx.client.clone()), &new_status)
-                    .await?;
-                user.send_kubeconfig(ctx.clone(), &kubeconfig).await?;
-                delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
-                return Ok(Action::requeue(Duration::from_secs(60 * 10)));
-            }
-            Some(ManagedUserStatus {
-                cert: Some(_),
-                kubeconfig: Some(_),
-                pkey: _,
-            }) => {
-                return Ok(Action::requeue(Duration::from_secs(60 * 10)));
-            }
-            _ => {
-                tracing::warn!("User doesn't have a status");
-                return Ok(Action::requeue(Duration::from_secs(60 * 5)));
-            }
-        }
+        tracing::info!("CSR has been signed. Generating kubeconfig.");
+        let root_kube_cert = get_kube_cert(ctx.clone()).await?;
+        let user_cert = String::from_utf8(csr_signed_cert.0.clone())?;
+        let kubeconfig = serde_yaml::to_string(&user.build_kubeconfig(
+            &ctx.args.kube_addr,
+            users_secret.pkey.as_str(),
+            &user_cert,
+            &root_kube_cert,
+        ))?;
+        users_secret.kubeconfig = Some(kubeconfig.clone());
+        users_secret.cert = Some(user_cert);
+        user.set_secret(secrets_api, &users_secret).await?;
+        user.send_kubeconfig(ctx.clone(), &kubeconfig).await?;
+        delete_csr(ctx.clone(), csr_arc.name_any().as_str()).await?;
+        return Ok(Action::requeue(Duration::from_secs(60 * 10)));
     }
     let mut csr = Arc::unwrap_or_clone(csr_arc);
     approve_csr(&mut csr, ctx.clone()).await?;

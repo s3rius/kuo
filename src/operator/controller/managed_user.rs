@@ -1,6 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
-use k8s_openapi::{api::certificates::v1::CertificateSigningRequest, ByteString};
+use k8s_openapi::{
+    api::{certificates::v1::CertificateSigningRequest, core::v1::Secret},
+    ByteString,
+};
 use kube::{
     api::{ObjectMeta, PostParams},
     runtime::{controller::Action, reflector::Lookup},
@@ -8,7 +11,7 @@ use kube::{
 };
 
 use crate::{
-    crds::managed_user::{ManagedUser, ManagedUserStatus},
+    crds::managed_user::{ManagedUser, ManagedUserSecretData},
     operator::{
         ctx::OperatorCtx,
         error::{KuoError, KuoResult},
@@ -46,7 +49,7 @@ pub async fn create_kube_csr(
     let mut meta = ObjectMeta::default();
     meta.insert_label("app.kubernetes.io/managed-by", "kuo-operator");
     meta.name = Some(csr_name.to_string());
-    meta.add_owner(user, None);
+    meta.add_owner(user);
     let sign_req = kube::Api::<CertificateSigningRequest>::all(ctx.client.clone())
         .create(
             &PostParams::default(),
@@ -84,21 +87,24 @@ pub async fn reconcile(user: Arc<ManagedUser>, ctx: Arc<OperatorCtx>) -> KuoResu
         )));
     }
     user.sync_permissions(ctx.clone()).await?;
-    if user.status.is_some() {
+    let secrets_api =
+        kube::Api::<Secret>::namespaced(ctx.client.clone(), ctx.client.default_namespace());
+    let users_secret = user.get_secret(secrets_api.clone()).await?;
+    if users_secret.is_some() {
         return Ok(Action::requeue(Duration::from_secs(60 * 10)));
     }
     let pkey = gen_user_pkey()?;
-    let username = user.name_unchecked();
+    let username = user.name_any();
     let csr = build_csr(&username, &pkey)?;
     let csr_name = format!("kuo-{}", &username);
-    user.simple_patch_status(
-        kube::Api::all(ctx.client.clone()),
-        ManagedUserStatus {
-            pkey: String::from_utf8(pkey.private_key_to_pem_pkcs8()?).unwrap(),
-            ..Default::default()
-        },
-    )
-    .await?;
+    let pkey_data = String::from_utf8(pkey.private_key_to_pem_pkcs8()?).unwrap();
+    let users_secret_data = ManagedUserSecretData {
+        pkey: pkey_data,
+        ..ManagedUserSecretData::default()
+    };
+    user.set_secret(secrets_api.clone(), &users_secret_data)
+        .await?;
+
     create_kube_csr(ctx, &user, &csr, &csr_name).await?;
     Ok(Action::requeue(Duration::from_secs(60 * 5)))
 }
