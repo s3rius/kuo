@@ -1,7 +1,8 @@
 use std::{str::FromStr, sync::Arc};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
-use kube::{config::NamedContext, CustomResource, ResourceExt};
+use k8s_openapi::api::core::v1::Secret;
+use kube::{api::ObjectMeta, config::NamedContext, CustomResource, ResourceExt};
 use lettre::{
     message::{header::ContentType, Attachment, Mailbox, SinglePart},
     Address, AsyncTransport,
@@ -9,7 +10,11 @@ use lettre::{
 use schemars::{schema::SchemaObject, JsonSchema};
 use serde::{Deserialize, Serialize};
 
-use crate::operator::{ctx::OperatorCtx, error::KuoResult};
+use crate::operator::{
+    ctx::OperatorCtx,
+    error::{KuoError, KuoResult},
+    utils::{meta::ObjectMetaKuoExt, resource::KuoResourceExt},
+};
 
 use super::inline_permissions::InlinePermissions;
 
@@ -18,7 +23,6 @@ use super::inline_permissions::InlinePermissions;
     group = "kuo.github.io",
     version = "v1",
     kind = "ManagedUser",
-    status = "ManagedUserStatus",
     printcolumn = r#"
     {
         "name":"Email", 
@@ -49,8 +53,10 @@ pub struct ManagedUserCRD {
     pub inline_permissions: Option<InlinePermissions>,
 }
 
+/// Struct that holds user's secret data
+/// used to access kubernetes.
 #[derive(Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
-pub struct ManagedUserStatus {
+pub struct ManagedUserSecretData {
     /// This is a private key, used by the client.
     /// This key is used for issuing certificate sign requests.
     pub pkey: String,
@@ -58,6 +64,55 @@ pub struct ManagedUserStatus {
     pub cert: Option<String>,
     /// Generated Kubeconfig
     pub kubeconfig: Option<String>,
+}
+
+impl From<&ManagedUserSecretData> for std::collections::BTreeMap<String, k8s_openapi::ByteString> {
+    fn from(value: &ManagedUserSecretData) -> Self {
+        let mut map = Self::new();
+        map.insert(
+            "pkey".to_string(),
+            k8s_openapi::ByteString(value.pkey.bytes().collect()),
+        );
+        if let Some(cert) = &value.cert {
+            map.insert(
+                "cert".to_string(),
+                k8s_openapi::ByteString(cert.bytes().collect()),
+            );
+        }
+        if let Some(kubeconfig) = &value.kubeconfig {
+            map.insert(
+                "kubeconfig".to_string(),
+                k8s_openapi::ByteString(kubeconfig.bytes().collect()),
+            );
+        }
+        map
+    }
+}
+
+impl TryFrom<std::collections::BTreeMap<String, k8s_openapi::ByteString>>
+    for ManagedUserSecretData
+{
+    type Error = KuoError;
+
+    fn try_from(
+        value: std::collections::BTreeMap<String, k8s_openapi::ByteString>,
+    ) -> Result<Self, Self::Error> {
+        let Some(pkey) = value.get("pkey") else {
+            return Err(KuoError::InvalidUserSecretData);
+        };
+        let pkey = String::from_utf8(pkey.0.clone())?;
+        let cert = value
+            .get("cert")
+            .and_then(|v| String::from_utf8(v.0.clone()).ok());
+        let kubeconfig = value
+            .get("kubeconfig")
+            .and_then(|v| String::from_utf8(v.0.clone()).ok());
+        Ok(Self {
+            pkey,
+            cert,
+            kubeconfig,
+        })
+    }
 }
 
 /// Add immutable rule to the field.
@@ -152,6 +207,41 @@ impl ManagedUser {
             )
             )).singlepart(kube_config_attachement))?;
         smtp.send(msg).await?;
+        Ok(())
+    }
+
+    pub async fn get_secret(
+        &self,
+        api: kube::Api<Secret>,
+    ) -> KuoResult<Option<ManagedUserSecretData>> {
+        let name = format!("{}-data", self.name_any());
+        let Some(key) = api.get_opt(&name).await? else {
+            return Ok(None);
+        };
+        if let Some(data) = key.data {
+            Ok(Some(ManagedUserSecretData::try_from(data)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn set_secret(
+        &self,
+        api: kube::Api<Secret>,
+        data: &ManagedUserSecretData,
+    ) -> KuoResult<()> {
+        let name = format!("{}-data", self.name_any());
+        let mut metadata = ObjectMeta {
+            name: Some(name),
+            ..Default::default()
+        };
+        metadata.add_owner(self);
+        let secret = Secret {
+            data: Some(data.into()),
+            metadata,
+            ..Default::default()
+        };
+        secret.patch_or_create(api).await?;
         Ok(())
     }
 

@@ -79,7 +79,7 @@ impl NamespacedPermissions {
         let name = format!("{}-{}", user.name_any(), hasher.finish());
         // api.get_metadata_opt(name)
         let mut role_metadata = ObjectMeta::default();
-        role_metadata.add_owner(user, None);
+        role_metadata.add_owner(user);
         role_metadata.name = Some(name.clone());
         role_metadata.insert_label("kuo.github.com/user", user.name_any());
         let mut new_role = Role {
@@ -96,7 +96,7 @@ impl NamespacedPermissions {
             .patch_or_create(kube::Api::namespaced(ctx.client.clone(), &self.namespace))
             .await?;
         let mut rb_metadata = ObjectMeta::default();
-        rb_metadata.add_owner(&new_role, None);
+        rb_metadata.add_owner(&new_role);
         rb_metadata.name = Some(name.clone());
         rb_metadata.insert_label("kuo.github.com/user", user.name_any());
         rb_metadata.namespace = Some(self.namespace.clone());
@@ -220,7 +220,7 @@ impl InlinePermissions {
             known_name = Some(name.clone());
             // api.get_metadata_opt(name)
             let mut role_metadata = ObjectMeta::default();
-            role_metadata.add_owner(user, None);
+            role_metadata.add_owner(user);
             role_metadata.name = Some(name.clone());
             role_metadata.insert_label("kuo.github.com/user", user.name_any());
             let mut new_role = ClusterRole {
@@ -238,7 +238,7 @@ impl InlinePermissions {
                 .patch_or_create(kube::Api::all(ctx.client.clone()))
                 .await?;
             let mut rb_metadata = ObjectMeta::default();
-            rb_metadata.add_owner(&new_role, None);
+            rb_metadata.add_owner(&new_role);
             rb_metadata.name = Some(name.clone());
             rb_metadata.insert_label("kuo.github.com/user", user.name_any());
             let role_binding = ClusterRoleBinding {
