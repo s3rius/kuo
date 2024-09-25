@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install core utils
-        run:
+        run: |
           apt-get update
           apt-get install coreutils
       - uses: actions-rust-lang/setup-rust-toolchain@v1
