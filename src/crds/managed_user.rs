@@ -144,7 +144,7 @@ impl ManagedUser {
     pub fn build_kubeconfig(
         &self,
         kube_addr: &str,
-        cluster_name: Option<String>,
+        cluster_name: &Option<String>,
         private_key: &str,
         client_cert: &str,
         root_cert: &str,
@@ -159,8 +159,7 @@ impl ManagedUser {
             "{}{}",
             cluster_name
                 .as_ref()
-                .map(|name| format!("{name}-"))
-                .unwrap_or(String::from("")),
+                .map_or(String::new(), |name| format!("{name}-")),
             self.name_any()
         );
         kubeconfig.clusters.push(kube::config::NamedCluster {
